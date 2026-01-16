@@ -26,10 +26,11 @@ jobs:
       - name: Run Clang-Tidy
         run: clang-tidy **/*.cpp -- -std=c++17 > clang_tidy_report.txt || true
 
-      # Step 5: Post PR Comment (this is where your code goes)
+      # Step 5: Post PR Comment
       - name: Post PR Comment
         uses: actions/github-script@v6
         with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fs = require('fs');
 
@@ -42,8 +43,8 @@ jobs:
             commentBody += "**Cppcheck Report:**\n```\n" + cppcheckReport + "\n```\n";
             commentBody += "**Clang-Tidy Report:**\n```\n" + clangTidyReport + "\n```\n";
 
-            // Post comment to the PR
-            github.issues.createComment({
+            // Post comment to PR
+            await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
