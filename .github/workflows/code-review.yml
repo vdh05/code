@@ -1,0 +1,21 @@
+name: C++ PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Install Cppcheck & Clang-Tidy
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cppcheck clang-tidy
+      - name: Run Cppcheck
+        run: cppcheck --enable=all --inconclusive --std=c++17 --force . 2> cppcheck_report.txt || true
+
+      - name: Run Clang-Tidy
+        run: clang-tidy **/*.cpp -- -std=c++17 > clang_tidy_report.txt || true
