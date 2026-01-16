@@ -7,12 +7,13 @@ on:
 jobs:
   review:
     runs-on: ubuntu-latest
+
     steps:
       # Step 1: Checkout code
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Step 2: Install linters and analyzers
+      # Step 2: Install C++ linters
       - name: Install Cppcheck & Clang-Tidy
         run: |
           sudo apt-get update
@@ -20,11 +21,13 @@ jobs:
 
       # Step 3: Run Cppcheck
       - name: Run Cppcheck
-        run: cppcheck --enable=all --std=c++17 . 2> cppcheck_report.txt || true
+        run: |
+          cppcheck --enable=all --inconclusive --std=c++17 . 2> cppcheck_report.txt || true
 
       # Step 4: Run Clang-Tidy
       - name: Run Clang-Tidy
-        run: clang-tidy **/*.cpp -- -std=c++17 > clang_tidy_report.txt || true
+        run: |
+          clang-tidy **/*.cpp -- -std=c++17 > clang_tidy_report.txt || true
 
       # Step 5: Post PR Comment
       - name: Post PR Comment
@@ -34,12 +37,18 @@ jobs:
           script: |
             const fs = require('fs');
 
-            // Read analysis reports
+            // Read reports
             const cppcheckReport = fs.readFileSync('cppcheck_report.txt', 'utf8');
             const clangTidyReport = fs.readFileSync('clang_tidy_report.txt', 'utf8');
 
-            // Build the comment
+            // Count warnings for score
+            const cppWarnings = cppcheckReport.split('\n').filter(line => line.trim() !== '').length;
+            const clangWarnings = clangTidyReport.split('\n').filter(line => line.trim() !== '').length;
+            const score = Math.max(0, 100 - (cppWarnings * 2 + clangWarnings));  // simple scoring formula
+
+            // Build comment
             let commentBody = "### Automated C++ PR Review\n\n";
+            commentBody += `**PR Quality Score:** ${score}/100\n\n`;
             commentBody += "**Cppcheck Report:**\n```\n" + cppcheckReport + "\n```\n";
             commentBody += "**Clang-Tidy Report:**\n```\n" + clangTidyReport + "\n```\n";
 
