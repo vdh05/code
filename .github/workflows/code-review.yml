@@ -13,7 +13,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Step 2: Install C++ linters
+      # Step 2: Install linters
       - name: Install Cppcheck & Clang-Tidy
         run: |
           sudo apt-get update
@@ -24,12 +24,12 @@ jobs:
         run: |
           cppcheck --enable=all --inconclusive --std=c++17 . 2> cppcheck_report.txt || true
 
-      # Step 4: Run Clang-Tidy
+      # Step 4: Run Clang-Tidy (fixed glob)
       - name: Run Clang-Tidy
         run: |
-          clang-tidy **/*.cpp -- -std=c++17 > clang_tidy_report.txt || true
+          find . -name "*.cpp" -print0 | xargs -0 clang-tidy -- -std=c++17 > clang_tidy_report.txt || true
 
-      # Step 5: Post PR Comment
+      # Step 5: Post PR Comment (fixed github API)
       - name: Post PR Comment
         uses: actions/github-script@v6
         with:
@@ -37,22 +37,25 @@ jobs:
           script: |
             const fs = require('fs');
 
-            // Read reports
             const cppcheckReport = fs.readFileSync('cppcheck_report.txt', 'utf8');
             const clangTidyReport = fs.readFileSync('clang_tidy_report.txt', 'utf8');
 
-            // Count warnings for score
-            const cppWarnings = cppcheckReport.split('\n').filter(line => line.trim() !== '').length;
-            const clangWarnings = clangTidyReport.split('\n').filter(line => line.trim() !== '').length;
-            const score = Math.max(0, 100 - (cppWarnings * 2 + clangWarnings));  // simple scoring formula
-
             // Build comment
-            let commentBody = "### Automated C++ PR Review\n\n";
-            commentBody += `**PR Quality Score:** ${score}/100\n\n`;
-            commentBody += "**Cppcheck Report:**\n```\n" + cppcheckReport + "\n```\n";
-            commentBody += "**Clang-Tidy Report:**\n```\n" + clangTidyReport + "\n```\n";
+            const commentBody = `
+### Automated C++ PR Review
 
-            // Post comment to PR
+**Cppcheck Report:**
+\`\`\`
+${cppcheckReport}
+\`\`\`
+
+**Clang-Tidy Report:**
+\`\`\`
+${clangTidyReport}
+\`\`\`
+`;
+
+            // Post comment
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
